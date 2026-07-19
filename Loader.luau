@@ -16,9 +16,9 @@
 ]]
 
 local MODULE_URLS = {
-    Names = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/Names.luau",
-    ESP   = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/ESP.luau",
-    Menu  = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/Menu.luau",
+    Names = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/Names.luau",
+    ESP   = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/ESP.luau",
+    Menu  = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/Menu.luau",
 }
 
 ----------------------------------------------------------------
