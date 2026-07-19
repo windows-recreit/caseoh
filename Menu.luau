@@ -13,7 +13,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local Menu = {}
 
-local dbg = function(msg) print("[ScaseOhrip:Menu] " .. tostring(msg)) end
+local dbg = function(msg) print(tostring(msg)) end
 function Menu.SetDebug(fn)
     if fn then dbg = fn end
 end
@@ -59,7 +59,6 @@ function Menu.CreateWindow(config)
     local existing = PlayerGui:FindFirstChild(windowName .. "_UI")
     if existing then
         existing:Destroy()
-        dbg("destroyed stale instance of previous session")
     end
 
     local ScreenGui = Instance.new("ScreenGui")
@@ -157,7 +156,6 @@ function Menu.CreateWindow(config)
     ContentArea.BorderSizePixel = 0
     ContentArea.Parent = MainFrame
 
-    dbg("window constructed: " .. windowName)
 
     ----------------------------------------------------------------
     -- Window object
@@ -193,7 +191,6 @@ function Menu.CreateWindow(config)
             end
         end
         currentTab = tabName
-        dbg("tab switched -> " .. tabName)
     end
 
     function WindowObj:CreateTab(name)
@@ -252,7 +249,6 @@ function Menu.CreateWindow(config)
         end)
 
         TabButtons[name] = TabButton
-        dbg("tab registered: " .. name .. " (order " .. tabOrder .. ")")
 
         if not currentTab then
             selectTab(name)
@@ -349,7 +345,6 @@ function Menu.CreateWindow(config)
             ClickCatcher.MouseButton1Click:Connect(function()
                 state = not state
                 updateVisual()
-                dbg(("toggle '%s' -> %s"):format(name2, tostring(state)))
                 local ok, err = pcall(callback, state)
                 if not ok then
                     dbg("callback error on '" .. name2 .. "': " .. tostring(err))
@@ -380,7 +375,6 @@ function Menu.CreateWindow(config)
             end)
 
             Btn.MouseButton1Click:Connect(function()
-                dbg("button pressed: " .. name2)
                 local ok, err = pcall(callback)
                 if not ok then
                     dbg("callback error on '" .. name2 .. "': " .. tostring(err))
@@ -408,7 +402,6 @@ function Menu.CreateWindow(config)
             hue = (hue + dt * 0.15) % 1
             mainFrameStroke.Color = Color3.fromHSV(hue, 1, 1)
         end)
-        dbg("rainbow corner shader attached")
     end
 
     function WindowObj:DisableRainbowCorners()
@@ -418,7 +411,6 @@ function Menu.CreateWindow(config)
         end
         mainFrameStroke.Color = Theme.Stroke
         mainFrameStroke.Thickness = 1
-        dbg("rainbow corner shader detached")
     end
 
     return WindowObj
