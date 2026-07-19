@@ -486,54 +486,8 @@ local Window = Menu.CreateWindow({ Name = "rip.hub" })
 local HomePage = Window:CreateTab("Home")
 
 HomePage:CreateSectionLabel("USER INFO")
-
--- Create user info display
-local userInfoFrame = Instance.new("Frame")
-userInfoFrame.Size = UDim2.new(1, 0, 0, 80)
-userInfoFrame.BackgroundColor3 = Menu.Theme.ButtonBg
-userInfoFrame.BorderSizePixel = 0
-userInfoFrame.Parent = HomePage
-corner(userInfoFrame, 6)
-
-local userList = Instance.new("UIListLayout")
-userList.Padding = UDim.new(0, 4)
-userList.SortOrder = Enum.SortOrder.LayoutOrder
-userList.Parent = userInfoFrame
-
-local userPad = Instance.new("UIPadding")
-userPad.PaddingTop = UDim.new(0, 8)
-userPad.PaddingLeft = UDim.new(0, 12)
-userPad.PaddingRight = UDim.new(0, 12)
-userPad.PaddingBottom = UDim.new(0, 8)
-userPad.Parent = userInfoFrame
-
-local nameLabel = Instance.new("TextLabel")
-nameLabel.Size = UDim2.new(1, 0, 0, 20)
-nameLabel.BackgroundTransparency = 1
-nameLabel.Text = "User: " .. LocalPlayer.DisplayName .. " (" .. LocalPlayer.Name .. ")"
-nameLabel.Font = Enum.Font.Gotham
-nameLabel.TextSize = 13
-nameLabel.TextColor3 = Menu.Theme.TextPrimary
-nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-nameLabel.Parent = userInfoFrame
-
-local userIdLabel = Instance.new("TextLabel")
-userIdLabel.Size = UDim2.new(1, 0, 0, 20)
-userIdLabel.BackgroundTransparency = 1
-userIdLabel.Text = "User ID: " .. LocalPlayer.UserId
-userIdLabel.Font = Enum.Font.Gotham
-userIdLabel.TextSize = 12
-userIdLabel.TextColor3 = Menu.Theme.TextSecondary
-userIdLabel.TextXAlignment = Enum.TextXAlignment.Left
-userIdLabel.Parent = userInfoFrame
-
--- Profile picture
-local profilePic = Instance.new("ImageLabel")
-profilePic.Size = UDim2.new(0, 40, 0, 40)
-profilePic.Position = UDim2.new(1, -50, 0, 8)
-profilePic.BackgroundTransparency = 1
-profilePic.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=48&height=48&format=png"
-profilePic.Parent = userInfoFrame
+HomePage:CreateInfoLabel("User: " .. LocalPlayer.DisplayName .. " (" .. LocalPlayer.Name .. ")")
+HomePage:CreateInfoLabel("User ID: " .. LocalPlayer.UserId)
 
 HomePage:CreateSectionLabel("EXECUTION INFO")
 
@@ -555,7 +509,6 @@ local function updateExecutionInfo()
     )
     
     executionInfo.Text = info
-    executionInfo.Size = UDim2.new(1, 0, 0, #string.split(info, "\n") * 20 + 10)
 end
 updateExecutionInfo()
 
@@ -654,7 +607,7 @@ if isBetaUser then
         print("Current Time:", os.date("%c"))
         print("==========================")
         
-        -- Also show in UI if we have the info panel
+        -- Also show in UI
         local info = string.format(
             "Uptime: %d seconds\nLast Watchdog: %s\nBananas: %d\nPlayers: %d\nCaseChar: %s\nTime: %s",
             stats.uptime or 0,
@@ -665,28 +618,7 @@ if isBetaUser then
             os.date("%H:%M:%S")
         )
         
-        -- Create or update info panel
-        if BetaPage.CreateInfoPanel then
-            local panel = BetaPage:CreateInfoPanel()
-            -- Clear existing children
-            for _, child in ipairs(panel:GetChildren()) do
-                if child:IsA("TextLabel") then
-                    child:Destroy()
-                end
-            end
-            
-            local infoLabel = Instance.new("TextLabel")
-            infoLabel.Size = UDim2.new(1, 0, 1, 0)
-            infoLabel.BackgroundTransparency = 1
-            infoLabel.Text = info
-            infoLabel.Font = Enum.Font.Gotham
-            infoLabel.TextSize = 12
-            infoLabel.TextColor3 = Menu.Theme.TextPrimary
-            infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-            infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-            infoLabel.TextWrapped = true
-            infoLabel.Parent = panel
-        end
+        BetaPage:CreateInfoLabel(info)
     end)
 end
 
