@@ -110,7 +110,7 @@ local function playCompletionDecal()
     ImageLabel.Parent = DecalGui
 
     -- Sequence Step: Fade in + Scale rapidly with deceleration drag spacing
-    local info = TweenInfo.new(0.8, Enum.EasingStyle.OutQuad, Enum.EasingDirection.Out)
+    local info = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local anim = TweenService:Create(ImageLabel, info, {
         Size = UDim2.new(0, 550, 0, 550),
         ImageTransparency = 0
