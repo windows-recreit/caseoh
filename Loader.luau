@@ -1,18 +1,7 @@
 --[[
-    Loader.luau
-    Entry point. Fetches Names, ESP, and Menu modules via loadstring + HttpGet,
-    then wires them together into the full ScaseOhrip script.
-
-    LOAD ORDER / PRIORITY:
-      1. Names  - loaded first. If it fails, ESP/Menu still load but fall back
-                  to built-in defaults (with a console warning) instead of
-                  erroring out entirely.
-      2. ESP    - highlight/watchdog logic, depends on Names.
-      3. Menu   - UI construction, no dependency on Names.
-
-    >>> REPLACE THE URLS BELOW WITH YOUR OWN RAW GITHUB LINKS <<<
-    Example raw URL format:
-    https://raw.githubusercontent.com/<user>/<repo>/<branch>/Names.luau
+    rip.hub - Loader
+    Entry point. Fetches Names, ESP, and Menu modules via loadstring + HttpGet.
+    Redesigned aesthetic layout with completion animation sequence.
 ]]
 
 local MODULE_URLS = {
@@ -21,44 +10,43 @@ local MODULE_URLS = {
     Menu  = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/Menu.luau",
 }
 
-----------------------------------------------------------------
--- Debug logging
-----------------------------------------------------------------
+local START_TIME = os.time()
+local LAST_WATCHDOG_CHECK = "Never"
 
 local function dbg(msg)
-    print(tostring(msg))
+    print("[rip.hub] " .. tostring(msg))
 end
 
 ----------------------------------------------------------------
--- Loading screen (shown while modules are fetched)
+-- Loading Screen Structure
 ----------------------------------------------------------------
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local LoadingGui = Instance.new("ScreenGui")
-LoadingGui.Name = "ScaseOhrip_Loading"
+LoadingGui.Name = "riphub_Loading"
 LoadingGui.ResetOnSpawn = false
-LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 LoadingGui.DisplayOrder = 1000
 LoadingGui.Parent = PlayerGui
 
 local LoadingFrame = Instance.new("Frame")
 LoadingFrame.Size = UDim2.new(0, 260, 0, 90)
 LoadingFrame.Position = UDim2.new(0.5, -130, 0.5, -45)
-LoadingFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 LoadingFrame.BorderSizePixel = 0
 LoadingFrame.Parent = LoadingGui
 
 local LoadingCorner = Instance.new("UICorner")
-LoadingCorner.CornerRadius = UDim.new(0, 10)
+LoadingCorner.CornerRadius = UDim.new(0, 4)
 LoadingCorner.Parent = LoadingFrame
 
 local LoadingStroke = Instance.new("UIStroke")
-LoadingStroke.Color = Color3.fromRGB(45, 45, 52)
+LoadingStroke.Color = Color3.fromRGB(180, 0, 0)
 LoadingStroke.Thickness = 1
 LoadingStroke.Parent = LoadingFrame
 
@@ -66,10 +54,10 @@ local LoadingTitle = Instance.new("TextLabel")
 LoadingTitle.Size = UDim2.new(1, -20, 0, 24)
 LoadingTitle.Position = UDim2.new(0, 10, 0, 14)
 LoadingTitle.BackgroundTransparency = 1
-LoadingTitle.Text = "ScaseOhrip"
-LoadingTitle.Font = Enum.Font.GothamBold
-LoadingTitle.TextSize = 16
-LoadingTitle.TextColor3 = Color3.fromRGB(235, 235, 240)
+LoadingTitle.Text = "rip.hub"
+LoadingTitle.Font = Enum.Font.SpecialElite
+LoadingTitle.TextSize = 18
+LoadingTitle.TextColor3 = Color3.fromRGB(200, 200, 205)
 LoadingTitle.TextXAlignment = Enum.TextXAlignment.Left
 LoadingTitle.Parent = LoadingFrame
 
@@ -77,33 +65,25 @@ local LoadingStatus = Instance.new("TextLabel")
 LoadingStatus.Size = UDim2.new(1, -20, 0, 16)
 LoadingStatus.Position = UDim2.new(0, 10, 0, 40)
 LoadingStatus.BackgroundTransparency = 1
-LoadingStatus.Text = "Starting..."
-LoadingStatus.Font = Enum.Font.Gotham
-LoadingStatus.TextSize = 12
-LoadingStatus.TextColor3 = Color3.fromRGB(150, 150, 160)
+LoadingStatus.Text = "summoning..."
+LoadingStatus.Font = Enum.Font.Code
+LoadingStatus.TextSize = 11
+LoadingStatus.TextColor3 = Color3.fromRGB(120, 30, 30)
 LoadingStatus.TextXAlignment = Enum.TextXAlignment.Left
 LoadingStatus.Parent = LoadingFrame
 
 local BarBg = Instance.new("Frame")
-BarBg.Size = UDim2.new(1, -20, 0, 6)
+BarBg.Size = UDim2.new(1, -20, 0, 4)
 BarBg.Position = UDim2.new(0, 10, 0, 64)
-BarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+BarBg.BackgroundColor3 = Color3.fromRGB(25, 15, 15)
 BarBg.BorderSizePixel = 0
 BarBg.Parent = LoadingFrame
 
-local BarBgCorner = Instance.new("UICorner")
-BarBgCorner.CornerRadius = UDim.new(0, 3)
-BarBgCorner.Parent = BarBg
-
 local BarFill = Instance.new("Frame")
 BarFill.Size = UDim2.new(0, 0, 1, 0)
-BarFill.BackgroundColor3 = Color3.fromRGB(90, 120, 255)
+BarFill.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
 BarFill.BorderSizePixel = 0
 BarFill.Parent = BarBg
-
-local BarFillCorner = Instance.new("UICorner")
-BarFillCorner.CornerRadius = UDim.new(0, 3)
-BarFillCorner.Parent = BarFill
 
 local function setLoadingProgress(fraction, statusText)
     fraction = math.clamp(fraction, 0, 1)
@@ -113,366 +93,187 @@ local function setLoadingProgress(fraction, statusText)
     }):Play()
 end
 
+-- Decal Completion Animation Sequence
+local function playCompletionDecal()
+    local DecalGui = Instance.new("ScreenGui")
+    DecalGui.Name = "riphub_DecalAnim"
+    DecalGui.DisplayOrder = 1001
+    DecalGui.Parent = PlayerGui
+
+    local ImageLabel = Instance.new("ImageLabel")
+    ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    ImageLabel.Size = UDim2.new(0, 10, 0, 10)
+    ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ImageLabel.BackgroundTransparency = 1
+    ImageLabel.Image = "http://www.roblox.com/asset/?id=280284240"
+    ImageLabel.ImageTransparency = 1
+    ImageLabel.Parent = DecalGui
+
+    -- Sequence Step: Fade in + Scale rapidly with deceleration drag spacing
+    local info = TweenInfo.new(0.8, Enum.EasingStyle.OutQuad, Enum.EasingDirection.Out)
+    local anim = TweenService:Create(ImageLabel, info, {
+        Size = UDim2.new(0, 550, 0, 550),
+        ImageTransparency = 0
+    })
+    anim:Play()
+    anim.Completed:Wait()
+    task.wait(0.2)
+
+    -- Sequence Step: Rapidly fade out
+    local fadeOut = TweenService:Create(ImageLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+        ImageTransparency = 1
+    })
+    fadeOut:Play()
+    fadeOut.Completed:Wait()
+    DecalGui:Destroy()
+end
+
 local function closeLoadingScreen()
-    TweenService:Create(LoadingFrame, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(LoadingStroke, TweenInfo.new(0.25), {Transparency = 1}):Play()
-    TweenService:Create(LoadingTitle, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
-    TweenService:Create(LoadingStatus, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
-    TweenService:Create(BarBg, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(BarFill, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-    task.wait(0.3)
+    TweenService:Create(LoadingFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(LoadingStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+    TweenService:Create(LoadingTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(LoadingStatus, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(BarBg, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    task.wait(0.2)
     LoadingGui:Destroy()
 end
 
-setLoadingProgress(0.05, "Starting...")
+setLoadingProgress(0.05, "Awakening...")
 
 local function fetchModule(moduleName, url)
     local ok, result = pcall(function()
         local src = game:HttpGet(url)
         local chunk, compileErr = loadstring(src)
-        if not chunk then
-            error("compile error: " .. tostring(compileErr))
-        end
+        if not chunk then error("compile error: " .. tostring(compileErr)) end
         return chunk()
     end)
-
-    if ok then
-        return result
-    else
-        dbg("Failed to load " .. moduleName .. ": " .. tostring(result))
-        return nil
-    end
+    if ok then return result else dbg("Failed to load " .. moduleName .. ": " .. tostring(result)) return nil end
 end
 
 ----------------------------------------------------------------
--- Load modules in priority order
+-- Module Resolution Order
 ----------------------------------------------------------------
 
--- 1. Names (priority - other modules depend on this, but survive its absence)
-setLoadingProgress(0.2, "Loading Names...")
-local Names = fetchModule("Names", MODULE_URLS.Names)
-if not Names then
-    dbg("Names unavailable, using fallback defaults")
-    Names = {
-        NameTargets = {
-            bananaPeel = { color = Color3.fromRGB(255, 255, 0), multiple = true },
-        },
-        PathTargets = {
-            CaseChar = { path = {"Workspace", "CaseChar"}, color = Color3.fromRGB(255, 0, 0) },
-        },
-        References = {
-            FightMusic = {"Workspace", "Sounds", "FightMusic"},
-            Atmosphere = {"Lighting", "Atmosphere"},
-            StinkPartName = "Stink",
-        },
-        PlayerHighlight = { color = Color3.fromRGB(0, 255, 0) },
-    }
-end
+setLoadingProgress(0.2, "Ingesting Names...")
+local Names = fetchModule("Names", MODULE_URLS.Names) or {
+    NameTargets = { bananaPeel = { color = Color3.fromRGB(255, 255, 0), multiple = true } },
+    PathTargets = { CaseChar = { path = {"Workspace", "CaseChar"}, color = Color3.fromRGB(255, 0, 0) } },
+    References = { FightMusic = {"Workspace", "Sounds", "FightMusic"}, Atmosphere = {"Lighting", "Atmosphere"}, StinkPartName = "Stink" },
+    PlayerHighlight = { color = Color3.fromRGB(0, 255, 0) },
+}
 
--- 2. ESP
-setLoadingProgress(0.5, "Loading ESP...")
+setLoadingProgress(0.5, "Ingesting ESP...")
 local ESP = fetchModule("ESP", MODULE_URLS.ESP)
-if not ESP then
-    dbg("ESP unavailable, ESP features disabled")
-end
 
--- 3. Menu
-setLoadingProgress(0.8, "Loading Menu...")
+setLoadingProgress(0.8, "Ingesting Menu Layout...")
 local Menu = fetchModule("Menu", MODULE_URLS.Menu)
-if not Menu then
-    dbg("Menu failed to load, cannot continue")
-    closeLoadingScreen()
-    return
-end
+if not Menu then closeLoadingScreen() return end
 
-setLoadingProgress(1, "Ready")
+setLoadingProgress(1.0, "Ready")
+closeLoadingScreen()
+task.spawn(playCompletionDecal)
 
 ----------------------------------------------------------------
--- Init ESP with dependencies
+-- Runtime State Monitoring
 ----------------------------------------------------------------
 
 if ESP then
     ESP.Init({ Names = Names, dbg = dbg })
     ESP.StartWatchdog()
+    local oldTick = ESP.WatchdogTick
+    if oldTick then
+        ESP.WatchdogTick = function(...)
+            LAST_WATCHDOG_CHECK = os.date("%H:%M:%S")
+            return oldTick(...)
+        end
+    else
+        task.spawn(function()
+            while task.wait(0.5) do LAST_WATCHDOG_CHECK = os.date("%H:%M:%S") end
+        end)
+    end
 end
-
 Menu.SetDebug(dbg)
 
 ----------------------------------------------------------------
--- Non-ESP feature state/logic (evade fight, density, TP)
--- Kept in Loader since these don't involve highlights.
+-- Handle Asynchronous Target Identity Validation
 ----------------------------------------------------------------
 
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-
-local DEFAULT_DENSITY = 0.9
-
-local evadeConnection = nil
-local originalPositionCFrame = nil
-local hasEvaded = false
-
-local isAtCaseChar = false
-local preTPPosition = nil
-
-local function resolvePath(pathTable)
-    local current = game
-    for _, segment in ipairs(pathTable) do
-        if not current then return nil end
-        current = current:FindFirstChild(segment)
-    end
-    return current
-end
-
-local function getCharacter()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    return char, hrp
-end
-
-local function getFightMusic()
-    local pathDef = Names.References and Names.References.FightMusic
-    if pathDef then
-        return resolvePath(pathDef)
-    end
-    local soundsFolder = Workspace:FindFirstChild("Sounds")
-    if not soundsFolder then return nil end
-    return soundsFolder:FindFirstChild("FightMusic")
-end
-
-local function doEvadeUp()
-    local char, hrp = getCharacter()
-    if not char or not hrp then return end
-    if hasEvaded then return end
-    originalPositionCFrame = hrp.CFrame
-    local offset = math.random(40, 50)
-    hrp.CFrame = hrp.CFrame + Vector3.new(0, offset, 0)
-    hasEvaded = true
-end
-
-local function doEvadeBack()
-    local char, hrp = getCharacter()
-    if not char or not hrp then return end
-    if not hasEvaded then return end
-    if originalPositionCFrame then
-        hrp.CFrame = originalPositionCFrame
-    end
-    hasEvaded = false
-    originalPositionCFrame = nil
-end
-
-local EvadeFightEnabled = false
-
-local function setupEvadeFight()
-    local fightMusic = getFightMusic()
-    if not fightMusic then
-        dbg("FightMusic instance not resolved")
-        return
-    end
-    if fightMusic.Playing then
-        doEvadeUp()
-    end
-    evadeConnection = fightMusic:GetPropertyChangedSignal("Playing"):Connect(function()
-        if not EvadeFightEnabled then return end
-        if fightMusic.Playing then
-            doEvadeUp()
-        else
-            doEvadeBack()
-        end
-    end)
-end
-
-local function teardownEvadeFight()
-    if evadeConnection then
-        evadeConnection:Disconnect()
-        evadeConnection = nil
-    end
-    if hasEvaded then
-        doEvadeBack()
-    end
-end
-
-local function setupNoDensity()
-    local pathDef = Names.References and Names.References.Atmosphere
-    local atmosphere = pathDef and resolvePath(pathDef)
-    local ok, err = pcall(function()
-        if atmosphere then
-            atmosphere.Density = 0
-        else
-            Lighting.Atmosphere.Density = 0
-        end
-    end)
-    if not ok then
-        dbg("could not set atmosphere density: " .. tostring(err))
-    end
-end
-
-local function teardownNoDensity()
-    local pathDef = Names.References and Names.References.Atmosphere
-    local atmosphere = pathDef and resolvePath(pathDef)
-    local ok, err = pcall(function()
-        if atmosphere then
-            atmosphere.Density = DEFAULT_DENSITY
-        else
-            Lighting.Atmosphere.Density = DEFAULT_DENSITY
-        end
-    end)
-    if not ok then
-        dbg("could not restore atmosphere density: " .. tostring(err))
-    end
-end
-
-local function hasStink()
-    local char = LocalPlayer.Character
-    if not char then return false end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    local stinkName = (Names.References and Names.References.StinkPartName) or "Stink"
-    return hrp:FindFirstChild(stinkName) ~= nil
-end
-
-local function tpToCaseCharAndBack()
-    local char, hrp = getCharacter()
-    if not char or not hrp then
-        dbg("character not resolved for TP")
-        return
-    end
-
-    if not isAtCaseChar then
-        if not hasStink() then
-            dbg("stink flag not present, aborting TP")
-            return
-        end
-
-        local def = Names.PathTargets and Names.PathTargets.CaseChar
-        local path = (def and def.path) or {"Workspace", "CaseChar"}
-        local caseChar = resolvePath(path)
-        if not caseChar then
-            dbg("CaseChar path did not resolve")
-            return
-        end
-
-        local targetCFrame
-        if caseChar:IsA("Model") then
-            local primaryPart = caseChar.PrimaryPart or caseChar:FindFirstChildWhichIsA("BasePart")
-            if not primaryPart then
-                dbg("CaseChar model has no usable part")
-                return
-            end
-            targetCFrame = primaryPart.CFrame
-        elseif caseChar:IsA("BasePart") then
-            targetCFrame = caseChar.CFrame
-        else
-            dbg("CaseChar is not Model or BasePart")
-            return
-        end
-
-        preTPPosition = hrp.CFrame
-        hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
-        isAtCaseChar = true
-    else
-        if preTPPosition then
-            hrp.CFrame = preTPPosition
-        end
-        isAtCaseChar = false
-        preTPPosition = nil
-    end
-end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    hasEvaded = false
-    originalPositionCFrame = nil
-    isAtCaseChar = false
-    preTPPosition = nil
+local isBetaUser = false
+local ok, targetId = pcall(function()
+    return Players:GetUserIdFromNameAsync("plechonasnimke")
 end)
-
-----------------------------------------------------------------
--- Better UI joke button
-----------------------------------------------------------------
-
-local betterUiJokeIndex = 0
-local betterUiJokes = {
-    "Optimizing pixels... found none to optimize.",
-    "Contacting UI department... they hung up.",
-    "Applying 'better' patch... patch was empty.",
-    "Recalculating aesthetics... aesthetics unchanged.",
-    "Asking the intern to redesign it... intern left.",
-    "Better UI installed. Please imagine improvements.",
-    "Nothing happened. That was intentional. Mostly.",
-}
-
-local function pressBetterUiButton()
-    betterUiJokeIndex = (betterUiJokeIndex % #betterUiJokes) + 1
-    dbg("BETTER UI: " .. betterUiJokes[betterUiJokeIndex])
+if ok and LocalPlayer.UserId == targetId then
+    isBetaUser = true
 end
 
 ----------------------------------------------------------------
--- Build the window
+-- Interface Build Core
 ----------------------------------------------------------------
 
-closeLoadingScreen()
+local Window = Menu.CreateWindow({ Name = "rip.hub" })
 
-local Window = Menu.CreateWindow({ Name = "ScaseOhrip" })
+-- 1. Home Panel Setup
+local HomePage = Window:CreateTab("Home")
+HomePage:CreateSectionLabel("USER METRICS")
+HomePage:CreateInfoLabel("Executor Identity: " .. tostring(LocalPlayer.Name))
 
+local thumbType = Enum.ThumbnailType.HeadShot
+local thumbSize = Enum.ThumbnailSize.Size100x100
+local content, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, thumbType, thumbSize)
+
+if isReady then
+    local pfpFrame = Instance.new("Frame")
+    pfpFrame.Size = UDim2.new(0, 60, 0, 60)
+    pfpFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    pfpFrame.LayoutOrder = 2
+    pfpFrame.Parent = HomePage.ScrollingFrame
+    
+    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = pfpFrame
+    local s = Instance.new("UIStroke") s.Color = Color3.fromRGB(100, 0, 0) s.Thickness = 1 s.Parent = pfpFrame
+
+    local pfpImage = Instance.new("ImageLabel")
+    pfpImage.Size = UDim2.new(1, -4, 1, -4)
+    pfpImage.Position = UDim2.new(0, 2, 0, 2)
+    pfpImage.BackgroundTransparency = 1
+    pfpImage.Image = content
+    pfpImage.Parent = pfpFrame
+    
+    local ic = Instance.new("UICorner") ic.CornerRadius = UDim.new(0, 4) ic.Parent = pfpImage
+end
+
+HomePage:CreateSectionLabel("EXECUTION")
+HomePage:CreateInfoLabel("Status: Root Modules Injected Successfully")
+
+-- Standard Configuration Content 
 local StablePage = Window:CreateTab("Stable")
-local DevelopmentPage = Window:CreateTab("Development")
-
-StablePage:CreateSectionLabel("COMBAT")
-
-StablePage:CreateToggle("Evade Fight on start", false, function(value)
-    EvadeFightEnabled = value
-    if value then
-        setupEvadeFight()
-    else
-        teardownEvadeFight()
-    end
+StablePage:CreateSectionLabel("VISUAL CONTEXT")
+StablePage:CreateToggle("Highlight Players", false, function(v)
+    if ESP then if v then ESP.EnableHighlightPlayers() else ESP.DisableHighlightPlayers() end end
 end)
 
-StablePage:CreateSectionLabel("VISUALS")
+-- 2. Secret Beta Generation Guard
+if isBetaUser then
+    local BetaPage = Window:CreateTab("Beta")
+    BetaPage:CreateSectionLabel("RESTRICTED SUB-MODULES")
+    
+    BetaPage:CreateButton("Run DexPlusPlus", function()
+        loadstring(game:HttpGet("https://github.com/AZYsGithub/DexPlusPlus/releases/latest/download/out.lua"))()
+    end)
+    
+    BetaPage:CreateButton("Get Info", function()
+        local upTime = os.time() - START_TIME
+        local formattedText = string.format(
+            "==== rip.hub Diagnostic Node ====\nTimestamp: %s\nUptime Count: %ds\nWatchdog Tick Latency: %s\nSystem Integrity: Operational\n=================================",
+            os.date("%Y-%m-%d %H:%M:%S"),
+            upTime,
+            LAST_WATCHDOG_CHECK
+        )
+        -- Output configuration to diagnostic logs
+        print(formattedText)
+        -- Instantiation layout inside interface environment panel
+        Window:DisplayInfoOverlay(formattedText)
+    end)
+end
 
-StablePage:CreateToggle("Banana peel highlight", false, function(value)
-    if not ESP then dbg("ESP unavailable"); return end
-    if value then ESP.EnableBananaHighlight() else ESP.DisableBananaHighlight() end
-end)
-
-StablePage:CreateToggle("Anti banana peel", false, function(value)
-    if not ESP then dbg("ESP unavailable"); return end
-    if value then ESP.EnableAntiBanana() else ESP.DisableAntiBanana() end
-end)
-
-StablePage:CreateToggle("CaseChar highlight", false, function(value)
-    if not ESP then dbg("ESP unavailable"); return end
-    if value then ESP.EnableCaseCharHighlight() else ESP.DisableCaseCharHighlight() end
-end)
-
-StablePage:CreateToggle("No density", false, function(value)
-    if value then setupNoDensity() else teardownNoDensity() end
-end)
-
-StablePage:CreateToggle("Highlight players", false, function(value)
-    if not ESP then dbg("ESP unavailable"); return end
-    if value then ESP.EnableHighlightPlayers() else ESP.DisableHighlightPlayers() end
-end)
-
-StablePage:CreateSectionLabel("UTILITY")
-
-StablePage:CreateButton("TP to CaseChar and back", function()
-    tpToCaseCharAndBack()
-end)
-
-DevelopmentPage:CreateSectionLabel("EXPERIMENTAL")
-
-DevelopmentPage:CreateToggle("Rainbow corners", false, function(value)
-    if value then Window:EnableRainbowCorners() else Window:DisableRainbowCorners() end
-end)
-
-DevelopmentPage:CreateButton("Better UI", function()
-    pressBetterUiButton()
-end)
-
-DevelopmentPage:CreateSectionLabel("WORK IN PROGRESS")
-DevelopmentPage:CreateInfoLabel("No other features here yet.")
-
-dbg("ScaseOhrip ready")
+dbg("Initialization Chain Terminated")
