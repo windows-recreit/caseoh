@@ -25,13 +25,12 @@ local WATCHDOG_INTERVAL = 0.5
 ----------------------------------------------------------------
 
 local Names = nil
-local dbg = function(msg) print("[ScaseOhrip:ESP] " .. tostring(msg)) end
+local dbg = function(msg) print(tostring(msg)) end
 
 function ESP.Init(deps)
     deps = deps or {}
     Names = deps.Names or { NameTargets = {}, PathTargets = {}, References = {}, PlayerHighlight = { color = Color3.fromRGB(0,255,0) } }
     if deps.dbg then dbg = deps.dbg end
-    dbg("ESP module initialized")
 end
 
 ----------------------------------------------------------------
@@ -155,7 +154,6 @@ function ESP.EnableBananaHighlight()
         end
     end)
 
-    dbg("banana highlight enabled")
 end
 
 function ESP.DisableBananaHighlight()
@@ -167,7 +165,6 @@ function ESP.DisableBananaHighlight()
         if entry.highlight then entry.highlight:Destroy() end
     end
     trackedBanana = {}
-    dbg("banana highlight disabled")
 end
 
 ----------------------------------------------------------------
@@ -186,13 +183,11 @@ function ESP.EnableAntiBanana()
             child:Destroy()
         end
     end)
-    dbg("anti-banana enabled")
 end
 
 function ESP.DisableAntiBanana()
     State.AntiBanana = false
     if antiBananaAddedConn then antiBananaAddedConn:Disconnect(); antiBananaAddedConn = nil end
-    dbg("anti-banana disabled")
 end
 
 ----------------------------------------------------------------
@@ -209,7 +204,6 @@ function ESP.EnableCaseCharHighlight()
     end
     local h = applyHighlight(caseChar, def.color)
     trackedCaseChar = { instance = caseChar, highlight = h, color = def.color, path = def.path }
-    dbg("casechar highlight enabled")
 end
 
 function ESP.DisableCaseCharHighlight()
@@ -218,17 +212,25 @@ function ESP.DisableCaseCharHighlight()
         trackedCaseChar.highlight:Destroy()
     end
     trackedCaseChar = nil
-    dbg("casechar highlight disabled")
 end
 
 ----------------------------------------------------------------
 -- Player highlight
 ----------------------------------------------------------------
 
+local function isCaseCharInstance(char)
+    if not char then return false end
+    local def = getCaseCharDef()
+    local caseChar = resolvePath(def.path)
+    if not caseChar then return false end
+    return char == caseChar or char:IsDescendantOf(caseChar) or caseChar:IsDescendantOf(char)
+end
+
 local function highlightPlayer(player)
     if player == LocalPlayer then return end
     local char = player.Character
     if not char then return end
+    if isCaseCharInstance(char) then return end
 
     if trackedPlayers[player] and isHighlightAlive(trackedPlayers[player]) and trackedPlayers[player].instance == char then
         return
@@ -282,7 +284,6 @@ function ESP.EnableHighlightPlayers()
         end
     end)
 
-    dbg("player highlight enabled")
 end
 
 function ESP.DisableHighlightPlayers()
@@ -297,7 +298,6 @@ function ESP.DisableHighlightPlayers()
         if entry.highlight then entry.highlight:Destroy() end
     end
     trackedPlayers = {}
-    dbg("player highlight disabled")
 end
 
 ----------------------------------------------------------------
@@ -337,6 +337,8 @@ local function watchdogTick()
             local char = player.Character
             if not char then
                 -- character gone, leave entry, CharacterAdded will refresh it
+            elseif isCaseCharInstance(char) then
+                unhighlightPlayer(player)
             elseif entry.instance ~= char then
                 -- character respawned, refresh
                 highlightPlayer(player)
@@ -358,7 +360,6 @@ function ESP.StartWatchdog()
             watchdogTick()
         end
     end)
-    dbg("highlight watchdog started, interval=" .. WATCHDOG_INTERVAL)
 end
 
 function ESP.StopWatchdog()
@@ -366,7 +367,6 @@ function ESP.StopWatchdog()
         watchdogConnection:Disconnect()
         watchdogConnection = nil
     end
-    dbg("highlight watchdog stopped")
 end
 
 return ESP
