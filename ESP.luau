@@ -56,6 +56,8 @@ local charAddedConns = {}
 
 local watchdogConnection = nil
 local watchdogAccum = 0
+local lastWatchdogCheck = os.time()
+local uptimeStart = os.time()
 
 ----------------------------------------------------------------
 -- Helpers
@@ -307,6 +309,8 @@ end
 ----------------------------------------------------------------
 
 local function watchdogTick()
+    lastWatchdogCheck = os.time()
+    
     if State.BananaHighlight then
         for peel, entry in pairs(trackedBanana) do
             if not peel.Parent then
@@ -367,6 +371,21 @@ function ESP.StopWatchdog()
         watchdogConnection:Disconnect()
         watchdogConnection = nil
     end
+end
+
+function ESP.GetStats()
+    return {
+        uptime = os.time() - uptimeStart,
+        lastWatchdogCheck = lastWatchdogCheck,
+        watchdogInterval = WATCHDOG_INTERVAL,
+        trackedBananaCount = #trackedBanana,
+        trackedPlayersCount = #trackedPlayers,
+        hasCaseChar = trackedCaseChar ~= nil,
+        bananaHighlight = State.BananaHighlight,
+        antiBanana = State.AntiBanana,
+        caseCharHighlight = State.CaseCharHighlight,
+        highlightPlayers = State.HighlightPlayers,
+    }
 end
 
 return ESP
