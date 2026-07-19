@@ -16,37 +16,117 @@
 ]]
 
 local MODULE_URLS = {
-    Names = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/Names.luau",
-    ESP   = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/ESP.luau",
-    Menu  = "https://raw.githubusercontent.com/windows-recreit/caseoh/refs/heads/main/Menu.luau",
+    Names = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/Names.luau",
+    ESP   = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/ESP.luau",
+    Menu  = "https://raw.githubusercontent.com/YOURUSER/YOURREPO/main/Menu.luau",
 }
 
 ----------------------------------------------------------------
 -- Debug logging
 ----------------------------------------------------------------
 
-local DEBUG_PREFIX = "[ScaseOhrip:Loader]"
-
-local function fakeAddr()
-    local hex = "0x"
-    for i = 1, 14 do
-        hex = hex .. string.format("%x", math.random(0, 15))
-    end
-    return hex
-end
-
 local function dbg(msg)
-    print(string.format("%s %s | ref:%s | tick:%.3f", DEBUG_PREFIX, msg, fakeAddr(), tick()))
+    print(tostring(msg))
 end
 
-dbg("loader starting")
+----------------------------------------------------------------
+-- Loading screen (shown while modules are fetched)
+----------------------------------------------------------------
 
-----------------------------------------------------------------
--- Module fetch helper
-----------------------------------------------------------------
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "ScaseOhrip_Loading"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+LoadingGui.DisplayOrder = 1000
+LoadingGui.Parent = PlayerGui
+
+local LoadingFrame = Instance.new("Frame")
+LoadingFrame.Size = UDim2.new(0, 260, 0, 90)
+LoadingFrame.Position = UDim2.new(0.5, -130, 0.5, -45)
+LoadingFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+LoadingFrame.BorderSizePixel = 0
+LoadingFrame.Parent = LoadingGui
+
+local LoadingCorner = Instance.new("UICorner")
+LoadingCorner.CornerRadius = UDim.new(0, 10)
+LoadingCorner.Parent = LoadingFrame
+
+local LoadingStroke = Instance.new("UIStroke")
+LoadingStroke.Color = Color3.fromRGB(45, 45, 52)
+LoadingStroke.Thickness = 1
+LoadingStroke.Parent = LoadingFrame
+
+local LoadingTitle = Instance.new("TextLabel")
+LoadingTitle.Size = UDim2.new(1, -20, 0, 24)
+LoadingTitle.Position = UDim2.new(0, 10, 0, 14)
+LoadingTitle.BackgroundTransparency = 1
+LoadingTitle.Text = "ScaseOhrip"
+LoadingTitle.Font = Enum.Font.GothamBold
+LoadingTitle.TextSize = 16
+LoadingTitle.TextColor3 = Color3.fromRGB(235, 235, 240)
+LoadingTitle.TextXAlignment = Enum.TextXAlignment.Left
+LoadingTitle.Parent = LoadingFrame
+
+local LoadingStatus = Instance.new("TextLabel")
+LoadingStatus.Size = UDim2.new(1, -20, 0, 16)
+LoadingStatus.Position = UDim2.new(0, 10, 0, 40)
+LoadingStatus.BackgroundTransparency = 1
+LoadingStatus.Text = "Starting..."
+LoadingStatus.Font = Enum.Font.Gotham
+LoadingStatus.TextSize = 12
+LoadingStatus.TextColor3 = Color3.fromRGB(150, 150, 160)
+LoadingStatus.TextXAlignment = Enum.TextXAlignment.Left
+LoadingStatus.Parent = LoadingFrame
+
+local BarBg = Instance.new("Frame")
+BarBg.Size = UDim2.new(1, -20, 0, 6)
+BarBg.Position = UDim2.new(0, 10, 0, 64)
+BarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+BarBg.BorderSizePixel = 0
+BarBg.Parent = LoadingFrame
+
+local BarBgCorner = Instance.new("UICorner")
+BarBgCorner.CornerRadius = UDim.new(0, 3)
+BarBgCorner.Parent = BarBg
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = Color3.fromRGB(90, 120, 255)
+BarFill.BorderSizePixel = 0
+BarFill.Parent = BarBg
+
+local BarFillCorner = Instance.new("UICorner")
+BarFillCorner.CornerRadius = UDim.new(0, 3)
+BarFillCorner.Parent = BarFill
+
+local function setLoadingProgress(fraction, statusText)
+    fraction = math.clamp(fraction, 0, 1)
+    LoadingStatus.Text = statusText or LoadingStatus.Text
+    TweenService:Create(BarFill, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        Size = UDim2.new(fraction, 0, 1, 0)
+    }):Play()
+end
+
+local function closeLoadingScreen()
+    TweenService:Create(LoadingFrame, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(LoadingStroke, TweenInfo.new(0.25), {Transparency = 1}):Play()
+    TweenService:Create(LoadingTitle, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
+    TweenService:Create(LoadingStatus, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
+    TweenService:Create(BarBg, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+    task.wait(0.3)
+    LoadingGui:Destroy()
+end
+
+setLoadingProgress(0.05, "Starting...")
 
 local function fetchModule(moduleName, url)
-    dbg("fetching module: " .. moduleName)
     local ok, result = pcall(function()
         local src = game:HttpGet(url)
         local chunk, compileErr = loadstring(src)
@@ -57,10 +137,9 @@ local function fetchModule(moduleName, url)
     end)
 
     if ok then
-        dbg("module loaded successfully: " .. moduleName)
         return result
     else
-        dbg("WARN: failed to load module '" .. moduleName .. "': " .. tostring(result))
+        dbg("Failed to load " .. moduleName .. ": " .. tostring(result))
         return nil
     end
 end
@@ -70,9 +149,10 @@ end
 ----------------------------------------------------------------
 
 -- 1. Names (priority - other modules depend on this, but survive its absence)
+setLoadingProgress(0.2, "Loading Names...")
 local Names = fetchModule("Names", MODULE_URLS.Names)
 if not Names then
-    dbg("Names module unavailable, using built-in fallback defaults")
+    dbg("Names unavailable, using fallback defaults")
     Names = {
         NameTargets = {
             bananaPeel = { color = Color3.fromRGB(255, 255, 0), multiple = true },
@@ -90,39 +170,41 @@ if not Names then
 end
 
 -- 2. ESP
+setLoadingProgress(0.5, "Loading ESP...")
 local ESP = fetchModule("ESP", MODULE_URLS.ESP)
 if not ESP then
-    dbg("FATAL: ESP module failed to load, ESP features will be unavailable")
+    dbg("ESP unavailable, ESP features disabled")
 end
 
 -- 3. Menu
+setLoadingProgress(0.8, "Loading Menu...")
 local Menu = fetchModule("Menu", MODULE_URLS.Menu)
 if not Menu then
-    dbg("FATAL: Menu module failed to load, cannot continue")
+    dbg("Menu failed to load, cannot continue")
+    closeLoadingScreen()
     return
 end
+
+setLoadingProgress(1, "Ready")
 
 ----------------------------------------------------------------
 -- Init ESP with dependencies
 ----------------------------------------------------------------
 
 if ESP then
-    ESP.Init({ Names = Names, dbg = function(msg) dbg("[ESP] " .. msg) end })
+    ESP.Init({ Names = Names, dbg = dbg })
     ESP.StartWatchdog()
 end
 
-Menu.SetDebug(function(msg) dbg("[Menu] " .. msg) end)
+Menu.SetDebug(dbg)
 
 ----------------------------------------------------------------
 -- Non-ESP feature state/logic (evade fight, density, TP)
 -- Kept in Loader since these don't involve highlights.
 ----------------------------------------------------------------
 
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-
-local LocalPlayer = Players.LocalPlayer
 
 local DEFAULT_DENSITY = 0.9
 
@@ -168,7 +250,6 @@ local function doEvadeUp()
     local offset = math.random(40, 50)
     hrp.CFrame = hrp.CFrame + Vector3.new(0, offset, 0)
     hasEvaded = true
-    dbg("evade routine executed, offset=" .. offset)
 end
 
 local function doEvadeBack()
@@ -180,7 +261,6 @@ local function doEvadeBack()
     end
     hasEvaded = false
     originalPositionCFrame = nil
-    dbg("evade routine reverted")
 end
 
 local EvadeFightEnabled = false
@@ -188,7 +268,7 @@ local EvadeFightEnabled = false
 local function setupEvadeFight()
     local fightMusic = getFightMusic()
     if not fightMusic then
-        dbg("WARN: FightMusic instance not resolved")
+        dbg("FightMusic instance not resolved")
         return
     end
     if fightMusic.Playing then
@@ -202,7 +282,6 @@ local function setupEvadeFight()
             doEvadeBack()
         end
     end)
-    dbg("evade fight watcher attached")
 end
 
 local function teardownEvadeFight()
@@ -213,7 +292,6 @@ local function teardownEvadeFight()
     if hasEvaded then
         doEvadeBack()
     end
-    dbg("evade fight watcher detached")
 end
 
 local function setupNoDensity()
@@ -226,10 +304,8 @@ local function setupNoDensity()
             Lighting.Atmosphere.Density = 0
         end
     end)
-    if ok then
-        dbg("atmosphere density set to 0")
-    else
-        dbg("WARN: could not set atmosphere density: " .. tostring(err))
+    if not ok then
+        dbg("could not set atmosphere density: " .. tostring(err))
     end
 end
 
@@ -243,10 +319,8 @@ local function teardownNoDensity()
             Lighting.Atmosphere.Density = DEFAULT_DENSITY
         end
     end)
-    if ok then
-        dbg("atmosphere density restored")
-    else
-        dbg("WARN: could not restore atmosphere density: " .. tostring(err))
+    if not ok then
+        dbg("could not restore atmosphere density: " .. tostring(err))
     end
 end
 
@@ -262,7 +336,7 @@ end
 local function tpToCaseCharAndBack()
     local char, hrp = getCharacter()
     if not char or not hrp then
-        dbg("WARN: character not resolved for TP")
+        dbg("character not resolved for TP")
         return
     end
 
@@ -276,7 +350,7 @@ local function tpToCaseCharAndBack()
         local path = (def and def.path) or {"Workspace", "CaseChar"}
         local caseChar = resolvePath(path)
         if not caseChar then
-            dbg("WARN: CaseChar path did not resolve")
+            dbg("CaseChar path did not resolve")
             return
         end
 
@@ -284,28 +358,26 @@ local function tpToCaseCharAndBack()
         if caseChar:IsA("Model") then
             local primaryPart = caseChar.PrimaryPart or caseChar:FindFirstChildWhichIsA("BasePart")
             if not primaryPart then
-                dbg("WARN: CaseChar model has no usable part")
+                dbg("CaseChar model has no usable part")
                 return
             end
             targetCFrame = primaryPart.CFrame
         elseif caseChar:IsA("BasePart") then
             targetCFrame = caseChar.CFrame
         else
-            dbg("WARN: CaseChar is not Model or BasePart")
+            dbg("CaseChar is not Model or BasePart")
             return
         end
 
         preTPPosition = hrp.CFrame
         hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
         isAtCaseChar = true
-        dbg("teleported to CaseChar")
     else
         if preTPPosition then
             hrp.CFrame = preTPPosition
         end
         isAtCaseChar = false
         preTPPosition = nil
-        dbg("teleported back to origin")
     end
 end
 
@@ -314,7 +386,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     originalPositionCFrame = nil
     isAtCaseChar = false
     preTPPosition = nil
-    dbg("character respawn detected, session flags reset")
 end)
 
 ----------------------------------------------------------------
@@ -340,6 +411,8 @@ end
 ----------------------------------------------------------------
 -- Build the window
 ----------------------------------------------------------------
+
+closeLoadingScreen()
 
 local Window = Menu.CreateWindow({ Name = "ScaseOhrip" })
 
@@ -402,6 +475,4 @@ end)
 DevelopmentPage:CreateSectionLabel("WORK IN PROGRESS")
 DevelopmentPage:CreateInfoLabel("No other features here yet.")
 
-dbg("all modules wired, ui finalized")
-dbg("ScaseOhrip fully loaded and operational")
-print(DEBUG_PREFIX .. " ready.")
+dbg("ScaseOhrip ready")
