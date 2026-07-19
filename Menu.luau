@@ -7,7 +7,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -35,13 +35,6 @@ local Theme = {
 }
 Menu.Theme = Theme
 
-local function corner(inst, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 6)
-    c.Parent = inst
-    return c
-end
-
 local function stroke(inst, color, thickness)
     local s = Instance.new("UIStroke")
     s.Color = color or Theme.Stroke
@@ -50,7 +43,7 @@ local function stroke(inst, color, thickness)
     return s
 end
 
--- Glitch text effect
+-- Better glitch text effect - subtle character swaps instead of color flicker
 local function createGlitchText(parent, text, fontSize)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
@@ -62,19 +55,32 @@ local function createGlitchText(parent, text, fontSize)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = parent
     
-    -- Random flicker
-    local flicker = nil
-    local function startFlicker()
-        if flicker then return end
-        flicker = game:GetService("RunService").Heartbeat:Connect(function()
-            if math.random() < 0.02 then
-                label.TextColor3 = Theme.Glow
-                task.wait(0.05)
-                label.TextColor3 = Theme.TextPrimary
+    local originalText = text
+    local glitchChars = {"░", "▒", "▓", "█", "▄", "▀", "■", "□", "▪", "▫"}
+    
+    -- Subtle glitch effect - occasional character swaps
+    local glitchConnection = nil
+    local function startGlitch()
+        if glitchConnection then return end
+        glitchConnection = RunService.Heartbeat:Connect(function()
+            if math.random() < 0.008 then -- 0.8% chance per frame
+                local chars = {}
+                for i = 1, #originalText do
+                    if math.random() < 0.15 then -- 15% chance to glitch each character
+                        chars[i] = glitchChars[math.random(#glitchChars)]
+                    else
+                        chars[i] = originalText:sub(i, i)
+                    end
+                end
+                label.Text = table.concat(chars)
+                
+                -- Reset after a short time
+                task.wait(0.05 + math.random() * 0.1)
+                label.Text = originalText
             end
         end)
     end
-    startFlicker()
+    startGlitch()
     
     return label
 end
@@ -118,7 +124,7 @@ function Menu.CreateWindow(config)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
-    corner(MainFrame, 10)
+    -- No rounded corners
     local mainFrameStroke = stroke(MainFrame, Theme.Stroke, 2)
 
     local TitleBar = Instance.new("Frame")
@@ -127,19 +133,13 @@ function Menu.CreateWindow(config)
     TitleBar.BackgroundColor3 = Theme.Sidebar
     TitleBar.BorderSizePixel = 0
     TitleBar.Parent = MainFrame
-    corner(TitleBar, 10)
-
-    local TitleBarMask = Instance.new("Frame")
-    TitleBarMask.Size = UDim2.new(1, 0, 0, 10)
-    TitleBarMask.Position = UDim2.new(0, 0, 1, -10)
-    TitleBarMask.BackgroundColor3 = Theme.Sidebar
-    TitleBarMask.BorderSizePixel = 0
-    TitleBarMask.Parent = TitleBar
+    -- No rounded corners
+    stroke(TitleBar, Theme.Stroke, 1)
 
     -- Decal in title bar
     addDecal(TitleBar, "http://www.roblox.com/asset/?id=280284240")
 
-    -- Glitch title
+    -- Glitch title with better effect
     local TitleText = createGlitchText(TitleBar, "rip.hub", 16)
     TitleText.Position = UDim2.new(0, 40, 0, 0)
     TitleText.Size = UDim2.new(1, -50, 1, 0)
@@ -175,6 +175,8 @@ function Menu.CreateWindow(config)
     Sidebar.BackgroundColor3 = Theme.Sidebar
     Sidebar.BorderSizePixel = 0
     Sidebar.Parent = MainFrame
+    -- Outline on sidebar
+    local sidebarStroke = stroke(Sidebar, Theme.Stroke, 1)
 
     local SidebarList = Instance.new("UIListLayout")
     SidebarList.Padding = UDim.new(0, 4)
@@ -194,6 +196,8 @@ function Menu.CreateWindow(config)
     ContentArea.BackgroundColor3 = Theme.Background
     ContentArea.BorderSizePixel = 0
     ContentArea.Parent = MainFrame
+    -- Outline on content area
+    stroke(ContentArea, Theme.Stroke, 1)
 
 
     ----------------------------------------------------------------
@@ -210,7 +214,6 @@ function Menu.CreateWindow(config)
     local currentTab = nil
     local tabOrder = 0
     local elementOrder = {}
-    local infoPanel = nil
 
     local function nextOrder(page)
         elementOrder[page] = (elementOrder[page] or 0) + 1
@@ -225,9 +228,18 @@ function Menu.CreateWindow(config)
             if name == tabName then
                 TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.AccentDim}):Play()
                 btn.TextLabel.TextColor3 = Theme.TextPrimary
+                -- Outline on active tab
+                if btn.Stroke then
+                    btn.Stroke.Color = Theme.Accent
+                    btn.Stroke.Thickness = 2
+                end
             else
                 TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.Sidebar}):Play()
                 btn.TextLabel.TextColor3 = Theme.TextSecondary
+                if btn.Stroke then
+                    btn.Stroke.Color = Theme.Stroke
+                    btn.Stroke.Thickness = 1
+                end
             end
         end
         currentTab = tabName
@@ -270,7 +282,9 @@ function Menu.CreateWindow(config)
         TabButton.Text = ""
         TabButton.LayoutOrder = tabOrder
         TabButton.Parent = Sidebar
-        corner(TabButton, 6)
+        -- No rounded corners on tabs
+        local tabStroke = stroke(TabButton, Theme.Stroke, 1)
+        TabButton.Stroke = tabStroke
 
         local TabLabel = Instance.new("TextLabel")
         TabLabel.Name = "TextLabel"
@@ -338,7 +352,8 @@ function Menu.CreateWindow(config)
             Holder.BorderSizePixel = 0
             Holder.LayoutOrder = nextOrder(Page)
             Holder.Parent = Page
-            corner(Holder, 6)
+            -- No rounded corners on toggles
+            stroke(Holder, Theme.Stroke, 1)
 
             local Label = Instance.new("TextLabel")
             Label.Size = UDim2.new(1, -60, 1, 0)
@@ -357,7 +372,8 @@ function Menu.CreateWindow(config)
             SwitchBg.BackgroundColor3 = default and Theme.ToggleOn or Theme.ToggleOff
             SwitchBg.BorderSizePixel = 0
             SwitchBg.Parent = Holder
-            corner(SwitchBg, 10)
+            -- No rounded corners on toggle background
+            stroke(SwitchBg, Theme.Stroke, 1)
 
             local Knob = Instance.new("Frame")
             Knob.Size = UDim2.new(0, 16, 0, 16)
@@ -365,7 +381,8 @@ function Menu.CreateWindow(config)
             Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             Knob.BorderSizePixel = 0
             Knob.Parent = SwitchBg
-            corner(Knob, 8)
+            -- No rounded corners on knob
+            stroke(Knob, Color3.fromRGB(200, 200, 200), 0)
 
             local ClickCatcher = Instance.new("TextButton")
             ClickCatcher.Size = UDim2.new(1, 0, 1, 0)
@@ -405,13 +422,18 @@ function Menu.CreateWindow(config)
             Btn.TextColor3 = Theme.TextPrimary
             Btn.LayoutOrder = nextOrder(Page)
             Btn.Parent = Page
-            corner(Btn, 6)
+            -- No rounded corners on buttons
+            local btnStroke = stroke(Btn, Theme.Stroke, 1)
 
             Btn.MouseEnter:Connect(function()
                 TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.ButtonHover}):Play()
+                btnStroke.Color = Theme.Accent
+                btnStroke.Thickness = 2
             end)
             Btn.MouseLeave:Connect(function()
                 TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.ButtonBg}):Play()
+                btnStroke.Color = Theme.Stroke
+                btnStroke.Thickness = 1
             end)
 
             Btn.MouseButton1Click:Connect(function()
@@ -424,34 +446,33 @@ function Menu.CreateWindow(config)
             return Btn
         end
 
-        function PageObj:CreateInfoPanel()
-            if infoPanel then return infoPanel end
-            
-            local Panel = Instance.new("Frame")
-            Panel.Size = UDim2.new(1, 0, 0, 200)
-            Panel.BackgroundColor3 = Theme.ButtonBg
-            Panel.BorderSizePixel = 0
-            Panel.LayoutOrder = nextOrder(Page)
-            Panel.Parent = Page
-            corner(Panel, 6)
-            
-            local panelList = Instance.new("UIListLayout")
-            panelList.Padding = UDim.new(0, 4)
-            panelList.SortOrder = Enum.SortOrder.LayoutOrder
-            panelList.Parent = Panel
-            
-            local panelPad = Instance.new("UIPadding")
-            panelPad.PaddingTop = UDim.new(0, 8)
-            panelPad.PaddingLeft = UDim.new(0, 12)
-            panelPad.PaddingRight = UDim.new(0, 12)
-            panelPad.PaddingBottom = UDim.new(0, 8)
-            panelPad.Parent = Panel
-            
-            infoPanel = Panel
-            return Panel
-        end
-
         return PageObj
+    end
+
+    ------------------------------------------------------------
+    -- Rainbow corners (operates on the main frame's UIStroke)
+    ------------------------------------------------------------
+
+    local RunService = game:GetService("RunService")
+    local rainbowConnection = nil
+
+    function WindowObj:EnableRainbowCorners()
+        if rainbowConnection then return end
+        mainFrameStroke.Thickness = 2
+        local hue = 0
+        rainbowConnection = RunService.Heartbeat:Connect(function(dt)
+            hue = (hue + dt * 0.15) % 1
+            mainFrameStroke.Color = Color3.fromHSV(hue, 1, 1)
+        end)
+    end
+
+    function WindowObj:DisableRainbowCorners()
+        if rainbowConnection then
+            rainbowConnection:Disconnect()
+            rainbowConnection = nil
+        end
+        mainFrameStroke.Color = Theme.Stroke
+        mainFrameStroke.Thickness = 2
     end
 
     return WindowObj
