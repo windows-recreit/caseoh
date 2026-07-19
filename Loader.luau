@@ -247,9 +247,44 @@ HomePage:CreateInfoLabel("Status: Root Modules Injected Successfully")
 
 -- Standard Configuration Content 
 local StablePage = Window:CreateTab("Stable")
-StablePage:CreateSectionLabel("VISUAL CONTEXT")
-StablePage:CreateToggle("Highlight Players", false, function(v)
-    if ESP then if v then ESP.EnableHighlightPlayers() else ESP.DisableHighlightPlayers() end end
+
+StablePage:CreateSectionLabel("COMBAT")
+
+StablePage:CreateToggle("Evade Fight on start", false, function(value)
+    EvadeFightEnabled = value
+    if value then setupEvadeFight() else teardownEvadeFight() end
+end)
+
+StablePage:CreateSectionLabel("VISUALS")
+
+StablePage:CreateToggle("Banana peel highlight", false, function(value)
+    if not ESP then dbg("ESP unavailable"); return end
+    if value then ESP.EnableBananaHighlight() else ESP.DisableBananaHighlight() end
+end)
+
+StablePage:CreateToggle("Anti banana peel", false, function(value)
+    if not ESP then dbg("ESP unavailable"); return end
+    if value then ESP.EnableAntiBanana() else ESP.DisableAntiBanana() end
+end)
+
+StablePage:CreateToggle("CaseChar highlight", false, function(value)
+    if not ESP then dbg("ESP unavailable"); return end
+    if value then ESP.EnableCaseCharHighlight() else ESP.DisableCaseCharHighlight() end
+end)
+
+StablePage:CreateToggle("No density", false, function(value)
+    if value then setupNoDensity() else teardownNoDensity() end
+end)
+
+StablePage:CreateToggle("Highlight players", false, function(value)
+    if not ESP then dbg("ESP unavailable"); return end
+    if value then ESP.EnableHighlightPlayers() else ESP.DisableHighlightPlayers() end
+end)
+
+StablePage:CreateSectionLabel("UTILITY")
+
+StablePage:CreateButton("TP to CaseChar and back", function()
+    tpToCaseCharAndBack()
 end)
 
 -- 2. Secret Beta Generation Guard
