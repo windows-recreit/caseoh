@@ -176,7 +176,7 @@ function Menu.CreateWindow(config)
     Sidebar.BorderSizePixel = 0
     Sidebar.Parent = MainFrame
     -- Outline on sidebar
-    local sidebarStroke = stroke(Sidebar, Theme.Stroke, 1)
+    stroke(Sidebar, Theme.Stroke, 1)
 
     local SidebarList = Instance.new("UIListLayout")
     SidebarList.Padding = UDim.new(0, 4)
@@ -228,17 +228,19 @@ function Menu.CreateWindow(config)
             if name == tabName then
                 TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.AccentDim}):Play()
                 btn.TextLabel.TextColor3 = Theme.TextPrimary
-                -- Outline on active tab
-                if btn.Stroke then
-                    btn.Stroke.Color = Theme.Accent
-                    btn.Stroke.Thickness = 2
+                -- Outline on active tab - find the UIStroke
+                local tabStroke = btn:FindFirstChildOfClass("UIStroke")
+                if tabStroke then
+                    tabStroke.Color = Theme.Accent
+                    tabStroke.Thickness = 2
                 end
             else
                 TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Theme.Sidebar}):Play()
                 btn.TextLabel.TextColor3 = Theme.TextSecondary
-                if btn.Stroke then
-                    btn.Stroke.Color = Theme.Stroke
-                    btn.Stroke.Thickness = 1
+                local tabStroke = btn:FindFirstChildOfClass("UIStroke")
+                if tabStroke then
+                    tabStroke.Color = Theme.Stroke
+                    tabStroke.Thickness = 1
                 end
             end
         end
@@ -283,8 +285,7 @@ function Menu.CreateWindow(config)
         TabButton.LayoutOrder = tabOrder
         TabButton.Parent = Sidebar
         -- No rounded corners on tabs
-        local tabStroke = stroke(TabButton, Theme.Stroke, 1)
-        TabButton.Stroke = tabStroke
+        stroke(TabButton, Theme.Stroke, 1)
 
         local TabLabel = Instance.new("TextLabel")
         TabLabel.Name = "TextLabel"
@@ -381,8 +382,6 @@ function Menu.CreateWindow(config)
             Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             Knob.BorderSizePixel = 0
             Knob.Parent = SwitchBg
-            -- No rounded corners on knob
-            stroke(Knob, Color3.fromRGB(200, 200, 200), 0)
 
             local ClickCatcher = Instance.new("TextButton")
             ClickCatcher.Size = UDim2.new(1, 0, 1, 0)
@@ -453,7 +452,6 @@ function Menu.CreateWindow(config)
     -- Rainbow corners (operates on the main frame's UIStroke)
     ------------------------------------------------------------
 
-    local RunService = game:GetService("RunService")
     local rainbowConnection = nil
 
     function WindowObj:EnableRainbowCorners()
